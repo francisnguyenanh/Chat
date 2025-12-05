@@ -505,8 +505,23 @@ socket.on('message_deleted', (data) => {
 socket.on('message_edited', (message) => {
     const msgDiv = document.querySelector(`[data-message-id="${message.id}"]`);
     if (msgDiv) {
-        msgDiv.remove();
-        addMessage(message);
+        // Update content in place, don't remove and re-add
+        const textDiv = msgDiv.querySelector('.message-text');
+        const editedLabel = message.edited_at ? ' <span class="edited-label">(đã sửa)</span>' : '';
+        
+        // Update text content and original data
+        textDiv.innerHTML = escapeHtml(message.content) + editedLabel;
+        textDiv.dataset.originalContent = message.content;
+        
+        // Disable editing mode if active
+        textDiv.contentEditable = false;
+        textDiv.classList.remove('editing');
+        
+        // Hide edit actions, show message actions
+        const editActions = msgDiv.querySelector('.edit-actions');
+        const messageActions = msgDiv.querySelector('.message-actions');
+        if (editActions) editActions.style.display = 'none';
+        if (messageActions) messageActions.style.display = 'flex';
     }
 });
 
