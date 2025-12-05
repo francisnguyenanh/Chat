@@ -42,10 +42,10 @@
             <!-- Messages will be loaded here -->
         </div>
         
-        <!-- Polling for new messages every 2 seconds -->
+        <!-- Polling for new messages every 2 seconds (only when active and not idle) -->
         <div id="polling-trigger"
              hx-get="/api/messages"
-             hx-trigger="every 2s"
+             hx-trigger="every 2s [!isTabHidden() && !isUserIdle()]"
              hx-target="#messages-area"
              hx-swap="beforeend scroll:bottom"
              hx-vals="js:{last_check: getLastCheck()}"
@@ -57,7 +57,7 @@
             <form hx-post="/api/send_message"
                   hx-target="#messages-area"
                   hx-swap="beforeend"
-                  hx-on::after-request="this.reset(); updateLastCheck()">
+                  hx-on::after-request="this.reset(); updateLastCheck();">
                 <div class="input-group">
                     <label for="file-input" class="btn btn-outline-secondary">
                         <i class="bi bi-paperclip"></i>
@@ -68,7 +68,7 @@
                            hx-encoding="multipart/form-data"
                            hx-target="#messages-area"
                            hx-swap="beforeend"
-                           hx-on::after-request="this.value=''; updateLastCheck()">
+                           hx-on::after-request="this.value=''; updateLastCheck();">
                     
                     <input type="text" class="form-control" name="message" id="message-input" 
                            placeholder="Nhập tin nhắn..." autocomplete="off" required>
@@ -104,6 +104,18 @@
         // Track last check timestamp
         let lastCheckTimestamp = 0;
         
+        // Track if tab is hidden (user switched to another tab/window)
+        let tabHidden = false;
+        
+        // Track user idle state (no activity for 5 minutes)
+        let userIdle = false;
+        let idleTimeout = null;
+        const IDLE_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
+        
+        // Track unread messages
+        let hasUnread = false;
+        const originalTitle = document.title;
+        
         function getLastCheck() {
             return lastCheckTimestamp;
         }
@@ -111,6 +123,45 @@
         function updateLastCheck() {
             lastCheckTimestamp = Date.now() / 1000;
         }
+        
+        function isTabHidden() {
+            return tabHidden;
+        }
+        
+        function isUserIdle() {
+            return userIdle;
+        }
+        
+        // Detect when user switches tabs (Page Visibility API)
+        document.addEventListener('visibilitychange', () => {
+            tabHidden = document.hidden;
+            if (!tabHidden) {
+                // User came back to tab, reset idle timer and clear unread
+                resetIdleTimer();
+                if (hasUnread) {
+                    hasUnread = false;
+                    document.title = originalTitle;
+                }
+            }
+        });
+        
+        // Reset idle timer on user activity
+        function resetIdleTimer() {
+            userIdle = false;
+            clearTimeout(idleTimeout);
+            idleTimeout = setTimeout(() => {
+                userIdle = true;
+                console.log('[IDLE] User has been idle for 5 minutes, polling paused');
+            }, IDLE_TIME);
+        }
+        
+        // Listen for user activity events
+        ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(event => {
+            document.addEventListener(event, resetIdleTimer, true);
+        });
+        
+        // Initialize idle timer
+        resetIdleTimer();
         
         // Convert UTC timestamps to Japan Time
         function convertToJapanTime() {
@@ -135,6 +186,32 @@
             const messagesArea = document.getElementById('messages-area');
             messagesArea.scrollTop = messagesArea.scrollHeight;
         });
+        document.body.addEventListener('htmx:beforeSwap', (e) => {
+            // Prevent duplicate messages
+            if (e.detail.target.id === 'messages-area' && e.detail.requestConfig.verb === 'get') {
+                const newContent = e.detail.xhr.responseText;
+                if (!newContent || newContent.trim() === '') return;
+                
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = newContent;
+                const newMessages = tempDiv.querySelectorAll('[data-message-id], [data-file-id]');
+                
+                newMessages.forEach(msg => {
+                    const msgId = msg.getAttribute('data-message-id') || msg.getAttribute('data-file-id');
+                    const idAttr = msg.getAttribute('data-message-id') ? 'data-message-id' : 'data-file-id';
+                    
+                    // Check if message already exists
+                    const existing = document.querySelector(`[${idAttr}="${msgId}"]`);
+                    if (existing) {
+                        msg.remove(); // Remove duplicate from new content
+                    }
+                });
+                
+                // Update the response with filtered content
+                e.detail.xhr.responseText = tempDiv.innerHTML;
+            }
+        });
+        
         document.body.addEventListener('htmx:afterSwap', (e) => {
             convertToJapanTime();
             // Always update last check after every response (even if empty)
@@ -144,6 +221,27 @@
             if (e.detail.target.id === 'messages-area' && e.detail.requestConfig.path === '/api/messages/all') {
                 const messagesArea = document.getElementById('messages-area');
                 messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+            
+            // Check for new messages from other users (polling response)
+            if (e.detail.requestConfig.path && e.detail.requestConfig.path.includes('/api/messages?')) {
+                const newContent = e.detail.xhr.responseText;
+                // If there's new content and tab is hidden or user is idle, show notification
+                if (newContent && newContent.trim() !== '' && (tabHidden || userIdle)) {
+                    // Parse to check if message is from another user
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = newContent;
+                    const messages = tempDiv.querySelectorAll('.message');
+                    
+                    messages.forEach(msg => {
+                        const messageDiv = msg.querySelector('.message-content');
+                        const author = msg.querySelector('.message-author');
+                        if (author && author.textContent.trim() !== CURRENT_USERNAME) {
+                            hasUnread = true;
+                            document.title = '🔴 ' + originalTitle;
+                        }
+                    });
+                }
             }
         });
         document.body.addEventListener('htmx:afterRequest', (e) => {
