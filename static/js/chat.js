@@ -79,7 +79,11 @@ function addMessage(message) {
     messageDiv.innerHTML = `
         <div class="message-content">
             <div class="message-author">${escapeHtml(message.username)}</div>
-            <div class="message-text">${escapeHtml(message.content)} ${editedLabel}</div>
+            <div class="message-text" data-original-content="${escapeHtml(message.content)}">${escapeHtml(message.content)} ${editedLabel}</div>
+            <div class="edit-actions" style="display:none;">
+                <button class="btn-edit-save"><i class="bi bi-check"></i> Lưu</button>
+                <button class="btn-edit-cancel"><i class="bi bi-x"></i> Hủy</button>
+            </div>
             ${reactionsHtml}
             <div class="message-footer">
                 <div class="message-time">${formatTimeJST(message.timestamp)}</div>
@@ -107,49 +111,108 @@ function parseReactions(reactionsStr) {
 }
 
 function buildReactionsHtml(messageId, reactions) {
-    if (!reactions || Object.keys(reactions).length === 0) {
-        return `<div class="reactions" data-message-id="${messageId}">
-            <button class="btn-reaction" data-emoji="👍">👍</button>
-            <button class="btn-reaction" data-emoji="❤️">❤️</button>
-            <button class="btn-reaction" data-emoji="😂">😂</button>
-            <button class="btn-reaction" data-emoji="😮">😮</button>
-            <button class="btn-reaction" data-emoji="😢">😢</button>
-        </div>`;
-    }
-    
     let html = `<div class="reactions" data-message-id="${messageId}">`;
     
-    // Show existing reactions with counts
-    for (const [emoji, users] of Object.entries(reactions)) {
-        const count = users.length;
-        const isActive = users.includes(String(CURRENT_USER_ID)) ? 'active' : '';
-        html += `<button class="btn-reaction ${isActive}" data-emoji="${emoji}">${emoji} ${count}</button>`;
+    // Show only existing reactions with counts
+    if (reactions && Object.keys(reactions).length > 0) {
+        for (const [emoji, users] of Object.entries(reactions)) {
+            const count = users.length;
+            const isActive = users.includes(String(CURRENT_USER_ID)) ? 'active' : '';
+            html += `<button class="btn-reaction ${isActive}" data-emoji="${emoji}">${emoji} ${count}</button>`;
+        }
     }
     
-    // Add remaining reaction buttons
+    // Add "+" button to add new reaction
+    html += `<button class="btn-add-reaction" title="Thêm reaction">➕</button>`;
+    
+    // Reaction picker (hidden by default)
+    html += `<div class="reaction-picker" style="display:none;">`;
     REACTION_EMOJIS.forEach(emoji => {
-        if (!reactions[emoji]) {
-            html += `<button class="btn-reaction" data-emoji="${emoji}">${emoji}</button>`;
-        }
+        html += `<button class="btn-reaction-pick" data-emoji="${emoji}">${emoji}</button>`;
     });
+    html += `</div>`;
     
     html += '</div>';
     return html;
 }
 
 function attachMessageListeners(messageDiv) {
-    // Edit button
+    // Edit button - make message-text editable
     const editBtn = messageDiv.querySelector('.edit-msg');
     if (editBtn) {
         editBtn.addEventListener('click', function() {
-            const msgId = this.dataset.id;
-            const msgText = messageDiv.querySelector('.message-text').textContent.replace('(đã sửa)', '').trim();
-            const newContent = prompt('Sửa tin nhắn:', msgText);
-            if (newContent && newContent.trim()) {
+            const textDiv = messageDiv.querySelector('.message-text');
+            const editActions = messageDiv.querySelector('.edit-actions');
+            const messageActions = messageDiv.querySelector('.message-actions');
+            
+            // Get original content without the edited label
+            const originalContent = textDiv.dataset.originalContent || textDiv.textContent.replace('(đã sửa)', '').trim();
+            
+            // Make div editable
+            textDiv.contentEditable = true;
+            textDiv.textContent = originalContent;
+            textDiv.focus();
+            textDiv.classList.add('editing');
+            
+            // Move cursor to end
+            const range = document.createRange();
+            const sel = window.getSelection();
+            range.selectNodeContents(textDiv);
+            range.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            
+            // Show edit actions, hide message actions
+            editActions.style.display = 'flex';
+            messageActions.style.display = 'none';
+        });
+    }
+    
+    // Save edit button
+    const saveBtn = messageDiv.querySelector('.btn-edit-save');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            const msgId = messageDiv.dataset.messageId;
+            const textDiv = messageDiv.querySelector('.message-text');
+            const newContent = textDiv.textContent.trim();
+            
+            if (newContent) {
                 socket.emit('edit_message', {
                     message_id: parseInt(msgId),
-                    content: newContent.trim()
+                    content: newContent
                 });
+                
+                // Disable editing mode
+                textDiv.contentEditable = false;
+                textDiv.classList.remove('editing');
+                messageDiv.querySelector('.edit-actions').style.display = 'none';
+                messageDiv.querySelector('.message-actions').style.display = 'flex';
+            }
+        });
+    }
+    
+    // Cancel edit button
+    const cancelBtn = messageDiv.querySelector('.btn-edit-cancel');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+            const textDiv = messageDiv.querySelector('.message-text');
+            const originalContent = textDiv.dataset.originalContent;
+            const editActions = messageDiv.querySelector('.edit-actions');
+            const messageActions = messageDiv.querySelector('.message-actions');
+            
+            // Restore original content
+            textDiv.textContent = originalContent;
+            textDiv.contentEditable = false;
+            textDiv.classList.remove('editing');
+            
+            // Hide edit actions, show message actions
+            editActions.style.display = 'none';
+            messageActions.style.display = 'flex';
+            
+            // Re-add edited label if it was there
+            const hasEditedLabel = messageDiv.querySelector('.edited-label');
+            if (hasEditedLabel) {
+                textDiv.innerHTML = escapeHtml(originalContent) + ' <span class="edited-label">(đã sửa)</span>';
             }
         });
     }
@@ -165,7 +228,42 @@ function attachMessageListeners(messageDiv) {
         });
     }
     
-    // Reaction buttons
+    // Add reaction button - show picker
+    const addReactionBtn = messageDiv.querySelector('.btn-add-reaction');
+    if (addReactionBtn) {
+        addReactionBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const picker = messageDiv.querySelector('.reaction-picker');
+            const isVisible = picker.style.display === 'flex';
+            
+            // Hide all other pickers
+            document.querySelectorAll('.reaction-picker').forEach(p => p.style.display = 'none');
+            
+            // Toggle current picker
+            picker.style.display = isVisible ? 'none' : 'flex';
+        });
+    }
+    
+    // Reaction picker buttons
+    const pickerBtns = messageDiv.querySelectorAll('.btn-reaction-pick');
+    pickerBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const msgId = messageDiv.dataset.messageId;
+            const emoji = this.dataset.emoji;
+            const picker = messageDiv.querySelector('.reaction-picker');
+            
+            socket.emit('add_reaction', {
+                message_id: parseInt(msgId),
+                emoji: emoji
+            });
+            
+            // Hide picker after selection
+            picker.style.display = 'none';
+        });
+    });
+    
+    // Existing reaction buttons - toggle reaction
     const reactionBtns = messageDiv.querySelectorAll('.btn-reaction');
     reactionBtns.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -178,6 +276,13 @@ function attachMessageListeners(messageDiv) {
         });
     });
 }
+
+// Close reaction pickers when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.reactions')) {
+        document.querySelectorAll('.reaction-picker').forEach(p => p.style.display = 'none');
+    }
+});
 
 // Add file to chat
 function addFile(file) {
