@@ -129,11 +129,22 @@
         }
         
         // Run conversion on page load and after HTMX updates
-        document.addEventListener('DOMContentLoaded', convertToJapanTime);
+        document.addEventListener('DOMContentLoaded', () => {
+            convertToJapanTime();
+            // Scroll to bottom on initial load
+            const messagesArea = document.getElementById('messages-area');
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        });
         document.body.addEventListener('htmx:afterSwap', (e) => {
             convertToJapanTime();
             // Always update last check after every response (even if empty)
             updateLastCheck();
+            
+            // Auto-scroll to bottom after initial load
+            if (e.detail.target.id === 'messages-area' && e.detail.requestConfig.path === '/api/messages/all') {
+                const messagesArea = document.getElementById('messages-area');
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
         });
         document.body.addEventListener('htmx:afterRequest', (e) => {
             // Update last check after polling request completes
