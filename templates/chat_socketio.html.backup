@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Chat App</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">Chat Room</h5>
+                    <small class="text-muted">Xin chào, <strong>{{ user.username }}</strong>{% if user.is_admin %} (Admin){% endif %}</small>
+                </div>
+                <div>
+                    <button id="theme-toggle" class="btn btn-sm btn-outline-light me-2">
+                        <i class="bi bi-moon-stars" id="theme-icon"></i>
+                    </button>
+                    {% if user.is_admin %}
+                        <a href="{{ url_for('admin') }}" class="btn btn-sm btn-outline-primary me-2">
+                            <i class="bi bi-gear"></i> Quản lý
+                        </a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-box-arrow-right"></i> Đăng xuất
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Messages Area -->
+        <div class="messages-area" id="messages-area">
+            {% for message in messages %}
+                <div class="message {% if message.user_id == user.id %}message-right{% else %}message-left{% endif %}" data-message-id="{{ message.id }}">
+                    <div class="message-content">
+                        <div class="message-author">{{ message.author.username }}</div>
+                        <div class="message-text">{{ message.content }}</div>
+                        <div class="message-time">{{ message.timestamp.strftime('%H:%M') }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+            
+            {% for file in files %}
+                <div class="message {% if file.user_id == user.id %}message-right{% else %}message-left{% endif %}" data-file-id="{{ file.id }}">
+                    <div class="message-content">
+                        <div class="message-author">{{ file.uploader.username }}</div>
+                        {% if file.file_type == 'image' %}
+                            <div class="message-file">
+                                <a href="{{ url_for('uploaded_file', filename=file.filename) }}" target="_blank">
+                                    <img src="{{ url_for('uploaded_file', filename=file.filename) }}" alt="{{ file.original_filename }}" class="uploaded-image">
+                                </a>
+                                <div class="file-name">{{ file.original_filename }}</div>
+                            </div>
+                        {% else %}
+                            <div class="message-file">
+                                <a href="{{ url_for('uploaded_file', filename=file.filename) }}" download="{{ file.original_filename }}" class="file-download">
+                                    <i class="bi bi-file-earmark-zip"></i>
+                                    <span>{{ file.original_filename }}</span>
+                                    <small>({{ (file.file_size / 1024) | round(1) }} KB)</small>
+                                </a>
+                            </div>
+                        {% endif %}
+                        <div class="message-time">{{ file.upload_time.strftime('%H:%M') }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Typing Indicator -->
+        <div class="typing-indicator" id="typing-indicator" style="display: none;">
+            <span class="typing-user"></span> đang nhập...
+        </div>
+        
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-group">
+                <label for="file-input" class="btn btn-outline-secondary">
+                    <i class="bi bi-paperclip"></i>
+                </label>
+                <input type="file" id="file-input" style="display: none;" accept="image/*,.zip,.rar,.7z">
+                
+                <input type="text" class="form-control" id="message-input" placeholder="Nhập tin nhắn..." autocomplete="off">
+                
+                <button class="btn btn-primary" id="send-button">
+                    <i class="bi bi-send"></i> Gửi
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="position-fixed top-0 end-0 p-3" style="z-index: 11">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const CURRENT_USER_ID = {{ user.id }};
+        const CURRENT_USERNAME = "{{ user.username }}";
+    </script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>

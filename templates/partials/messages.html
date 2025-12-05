@@ -1,0 +1,11 @@
+{% if messages %}
+    {% for message in messages %}
+        {% include 'partials/message_item.html' %}
+    {% endfor %}
+{% endif %}
+
+{% if files %}
+    {% for file in files %}
+        {% include 'partials/file_item.html' %}
+    {% endfor %}
+{% endif %}

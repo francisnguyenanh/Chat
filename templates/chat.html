@@ -33,63 +33,51 @@
             </div>
         </div>
         
-        <!-- Messages Area -->
-        <div class="messages-area" id="messages-area">
-            {% for message in messages %}
-                <div class="message {% if message.user_id == user.id %}message-right{% else %}message-left{% endif %}" data-message-id="{{ message.id }}">
-                    <div class="message-content">
-                        <div class="message-author">{{ message.author.username }}</div>
-                        <div class="message-text">{{ message.content }}</div>
-                        <div class="message-time">{{ message.timestamp.strftime('%H:%M') }}</div>
-                    </div>
-                </div>
-            {% endfor %}
-            
-            {% for file in files %}
-                <div class="message {% if file.user_id == user.id %}message-right{% else %}message-left{% endif %}" data-file-id="{{ file.id }}">
-                    <div class="message-content">
-                        <div class="message-author">{{ file.uploader.username }}</div>
-                        {% if file.file_type == 'image' %}
-                            <div class="message-file">
-                                <a href="{{ url_for('uploaded_file', filename=file.filename) }}" target="_blank">
-                                    <img src="{{ url_for('uploaded_file', filename=file.filename) }}" alt="{{ file.original_filename }}" class="uploaded-image">
-                                </a>
-                                <div class="file-name">{{ file.original_filename }}</div>
-                            </div>
-                        {% else %}
-                            <div class="message-file">
-                                <a href="{{ url_for('uploaded_file', filename=file.filename) }}" download="{{ file.original_filename }}" class="file-download">
-                                    <i class="bi bi-file-earmark-zip"></i>
-                                    <span>{{ file.original_filename }}</span>
-                                    <small>({{ (file.file_size / 1024) | round(1) }} KB)</small>
-                                </a>
-                            </div>
-                        {% endif %}
-                        <div class="message-time">{{ file.upload_time.strftime('%H:%M') }}</div>
-                    </div>
-                </div>
-            {% endfor %}
+        <!-- Messages Area with HTMX polling -->
+        <div class="messages-area" id="messages-area"
+             hx-get="/api/messages/all"
+             hx-trigger="load"
+             hx-swap="innerHTML"
+             hx-sync="this:replace">
+            <!-- Messages will be loaded here -->
         </div>
         
-        <!-- Typing Indicator -->
-        <div class="typing-indicator" id="typing-indicator" style="display: none;">
-            <span class="typing-user"></span> đang nhập...
+        <!-- Polling for new messages every 2 seconds -->
+        <div id="polling-trigger"
+             hx-get="/api/messages"
+             hx-trigger="every 2s"
+             hx-target="#messages-area"
+             hx-swap="beforeend scroll:bottom"
+             hx-vals="js:{last_check: getLastCheck()}"
+             style="display: none;">
         </div>
         
         <!-- Input Area -->
         <div class="input-area">
-            <div class="input-group">
-                <label for="file-input" class="btn btn-outline-secondary">
-                    <i class="bi bi-paperclip"></i>
-                </label>
-                <input type="file" id="file-input" style="display: none;" accept="image/*,.zip,.rar,.7z">
-                
-                <input type="text" class="form-control" id="message-input" placeholder="Nhập tin nhắn..." autocomplete="off">
-                
-                <button class="btn btn-primary" id="send-button">
-                    <i class="bi bi-send"></i> Gửi
-                </button>
-            </div>
+            <form hx-post="/api/send_message"
+                  hx-target="#messages-area"
+                  hx-swap="beforeend"
+                  hx-on::after-request="this.reset(); updateLastCheck()">
+                <div class="input-group">
+                    <label for="file-input" class="btn btn-outline-secondary">
+                        <i class="bi bi-paperclip"></i>
+                    </label>
+                    <input type="file" id="file-input" name="file" style="display: none;" 
+                           accept="image/*,.zip,.rar,.7z"
+                           hx-post="/api/upload_file"
+                           hx-encoding="multipart/form-data"
+                           hx-target="#messages-area"
+                           hx-swap="beforeend"
+                           hx-on::after-request="this.value=''; updateLastCheck()">
+                    
+                    <input type="text" class="form-control" name="message" id="message-input" 
+                           placeholder="Nhập tin nhắn..." autocomplete="off" required>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-send"></i> Gửi
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
     
@@ -108,11 +96,174 @@
     {% endwith %}
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script>
         const CURRENT_USER_ID = {{ user.id }};
         const CURRENT_USERNAME = "{{ user.username }}";
+        
+        // Track last check timestamp
+        let lastCheckTimestamp = 0;
+        
+        function getLastCheck() {
+            return lastCheckTimestamp;
+        }
+        
+        function updateLastCheck() {
+            lastCheckTimestamp = Date.now() / 1000;
+        }
+        
+        // Convert UTC timestamps to Japan Time
+        function convertToJapanTime() {
+            document.querySelectorAll('.timestamp').forEach(span => {
+                const utcTime = span.dataset.utc;
+                if (utcTime) {
+                    const date = new Date(utcTime);
+                    const jstTime = new Date(date.getTime() + (9 * 60 * 60 * 1000)); // UTC+9
+                    span.textContent = jstTime.toLocaleTimeString('ja-JP', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: false 
+                    });
+                }
+            });
+        }
+        
+        // Run conversion on page load and after HTMX updates
+        document.addEventListener('DOMContentLoaded', convertToJapanTime);
+        document.body.addEventListener('htmx:afterSwap', (e) => {
+            convertToJapanTime();
+            // Always update last check after every response (even if empty)
+            updateLastCheck();
+        });
+        document.body.addEventListener('htmx:afterRequest', (e) => {
+            // Update last check after polling request completes
+            if (e.detail.target && e.detail.target.id === 'polling-trigger') {
+                updateLastCheck();
+            }
+        });
+        document.body.addEventListener('htmx:afterSettle', (e) => {
+            const messagesArea = document.getElementById('messages-area');
+            // Only auto-scroll if user is near bottom (within 100px)
+            const isNearBottom = messagesArea.scrollHeight - messagesArea.scrollTop - messagesArea.clientHeight < 100;
+            if (isNearBottom) {
+                messagesArea.scrollTop = messagesArea.scrollHeight;
+            }
+        });
+        
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        
+        if (savedTheme === 'dark') {
+            themeIcon.classList.remove('bi-moon-stars');
+            themeIcon.classList.add('bi-sun');
+        }
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            if (newTheme === 'dark') {
+                themeIcon.classList.remove('bi-moon-stars');
+                themeIcon.classList.add('bi-sun');
+            } else {
+                themeIcon.classList.remove('bi-sun');
+                themeIcon.classList.add('bi-moon-stars');
+            }
+        });
+        
+        // File input trigger
+        document.querySelector('label[for="file-input"]').addEventListener('click', () => {
+            document.getElementById('file-input').click();
+        });
+        
+        // Edit message
+        function editMessage(messageId) {
+            const messageDiv = document.querySelector(`#message-${messageId} .message-text`);
+            const originalContent = messageDiv.textContent;
+            
+            messageDiv.contentEditable = 'true';
+            messageDiv.focus();
+            messageDiv.classList.add('editing');
+            
+            // Create save/cancel buttons
+            const actionsDiv = document.querySelector(`#message-${messageId} .message-actions`);
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'btn btn-sm btn-success me-1';
+            saveBtn.innerHTML = '<i class="bi bi-check"></i>';
+            saveBtn.onclick = () => saveEdit(messageId, messageDiv, originalContent);
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn btn-sm btn-secondary';
+            cancelBtn.innerHTML = '<i class="bi bi-x"></i>';
+            cancelBtn.onclick = () => cancelEdit(messageId, messageDiv, originalContent);
+            
+            actionsDiv.innerHTML = '';
+            actionsDiv.appendChild(saveBtn);
+            actionsDiv.appendChild(cancelBtn);
+        }
+        
+        function saveEdit(messageId, messageDiv, originalContent) {
+            const newContent = messageDiv.textContent.trim();
+            if (!newContent) {
+                alert('Tin nhắn không được để trống');
+                return;
+            }
+            
+            // Send edit request with HTMX
+            htmx.ajax('POST', `/api/edit_message/${messageId}`, {
+                values: { content: newContent },
+                target: `#message-${messageId}`,
+                swap: 'outerHTML'
+            });
+        }
+        
+        function cancelEdit(messageId, messageDiv, originalContent) {
+            messageDiv.contentEditable = 'false';
+            messageDiv.textContent = originalContent;
+            messageDiv.classList.remove('editing');
+            
+            // Restore action buttons
+            const actionsDiv = document.querySelector(`#message-${messageId} .message-actions`);
+            actionsDiv.innerHTML = `
+                <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editMessage(${messageId})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger btn-delete" 
+                        hx-delete="/api/delete_message/${messageId}"
+                        hx-target="#message-${messageId}"
+                        hx-swap="outerHTML swap:0.5s"
+                        hx-confirm="Bạn có chắc muốn xóa tin nhắn này?">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+            htmx.process(actionsDiv);
+        }
+        
+        // Reaction picker
+        function showReactionPicker(messageId) {
+            const picker = document.getElementById(`reaction-picker-${messageId}`);
+            picker.style.display = 'block';
+        }
+        
+        function hideReactionPicker(messageId) {
+            const picker = document.getElementById(`reaction-picker-${messageId}`);
+            picker.style.display = 'none';
+        }
+        
+        // Close reaction picker when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.btn-add-reaction') && !e.target.closest('.reaction-picker')) {
+                document.querySelectorAll('.reaction-picker').forEach(picker => {
+                    picker.style.display = 'none';
+                });
+            }
+        });
     </script>
-    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 </body>
 </html>

@@ -1,0 +1,37 @@
+<div class="message {% if message.user_id == current_user.id %}message-right{% else %}message-left{% endif %}" 
+     data-message-id="{{ message.id }}" 
+     id="message-{{ message.id }}">
+    <div class="message-content">
+        <div class="message-author">{{ message.author.username }}</div>
+        <div class="message-text" contenteditable="false">{{ message.content }}</div>
+        {% if message.edited_at %}
+            <small class="text-muted">(đã chỉnh sửa)</small>
+        {% endif %}
+        <div class="message-time">
+            <span class="timestamp" data-utc="{{ message.timestamp.isoformat() }}">{{ message.timestamp.strftime('%H:%M') }}</span>
+        </div>
+        
+        <!-- Reactions -->
+        <div class="message-reactions" id="reactions-{{ message.id }}">
+            {% include 'partials/reactions.html' %}
+        </div>
+        
+        <!-- Action buttons -->
+        {% if message.user_id == current_user.id or current_user.is_admin %}
+        <div class="message-actions">
+            {% if message.user_id == current_user.id %}
+            <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editMessage({{ message.id }})">
+                <i class="bi bi-pencil"></i>
+            </button>
+            {% endif %}
+            <button class="btn btn-sm btn-outline-danger btn-delete" 
+                    hx-delete="/api/delete_message/{{ message.id }}"
+                    hx-target="#message-{{ message.id }}"
+                    hx-swap="outerHTML swap:0.5s"
+                    hx-confirm="Bạn có chắc muốn xóa tin nhắn này?">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>

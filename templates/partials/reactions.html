@@ -1,0 +1,29 @@
+{% set reactions_dict = message.reactions | from_json if message.reactions else {} %}
+{% if reactions_dict %}
+    {% for emoji, user_ids in reactions_dict.items() %}
+    <button class="btn btn-sm reaction-btn {% if current_user.id|string in user_ids %}reaction-active{% endif %}"
+            hx-post="/api/add_reaction/{{ message.id }}"
+            hx-vals='{"emoji": "{{ emoji }}"}'
+            hx-target="#reactions-{{ message.id }}"
+            hx-swap="innerHTML">
+        {{ emoji }} {{ user_ids|length }}
+    </button>
+    {% endfor %}
+{% endif %}
+<button class="btn btn-sm btn-add-reaction" onclick="showReactionPicker({{ message.id }})">
+    <i class="bi bi-emoji-smile"></i>
+</button>
+
+<!-- Reaction picker popup -->
+<div class="reaction-picker" id="reaction-picker-{{ message.id }}" style="display: none;">
+    {% for emoji in ['👍', '❤️', '😂', '😮', '😢'] %}
+    <button class="reaction-emoji" 
+            hx-post="/api/add_reaction/{{ message.id }}"
+            hx-vals='{"emoji": "{{ emoji }}"}'
+            hx-target="#reactions-{{ message.id }}"
+            hx-swap="innerHTML"
+            onclick="hideReactionPicker({{ message.id }})">
+        {{ emoji }}
+    </button>
+    {% endfor %}
+</div>
