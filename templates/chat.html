@@ -316,27 +316,38 @@
         // Edit message
         function editMessage(messageId) {
             const messageDiv = document.querySelector(`#message-${messageId} .message-text`);
-            const originalContent = messageDiv.textContent;
-            
+            const originalContent = messageDiv.textContent.trim();
+
+            // Lưu nội dung gốc để hủy chính xác
+            messageDiv.dataset.original = originalContent;
+
+            // Bật chế độ chỉnh sửa
             messageDiv.contentEditable = 'true';
             messageDiv.focus();
             messageDiv.classList.add('editing');
-            
-            // Create save/cancel buttons
+
+            // Đưa con trỏ về cuối dòng
+            const range = document.createRange();
+            const sel = window.getSelection();
+            range.selectNodeContents(messageDiv);
+            range.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(range);
+
+            // Tạo nút Lưu / Hủy
             const actionsDiv = document.querySelector(`#message-${messageId} .message-actions`);
-            const saveBtn = document.createElement('button');
-            saveBtn.className = 'btn btn-sm btn-success me-1';
-            saveBtn.innerHTML = '<i class="bi bi-check"></i>';
-            saveBtn.onclick = () => saveEdit(messageId, messageDiv, originalContent);
-            
-            const cancelBtn = document.createElement('button');
-            cancelBtn.className = 'btn btn-sm btn-secondary';
-            cancelBtn.innerHTML = '<i class="bi bi-x"></i>';
-            cancelBtn.onclick = () => cancelEdit(messageId, messageDiv, originalContent);
-            
-            actionsDiv.innerHTML = '';
-            actionsDiv.appendChild(saveBtn);
-            actionsDiv.appendChild(cancelBtn);
+            actionsDiv.innerHTML = `
+                <button class="btn btn-sm btn-success me-1" title="Lưu (Enter)">
+                    <i class="bi bi-check-lg"></i>
+                </button>
+                <button class="btn btn-sm btn-secondary" title="Hủy (Escape)">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            `;
+
+            // Gắn sự kiện cho nút
+            actionsDiv.querySelector('.btn-success').onclick = () => saveEdit(messageId, messageDiv, originalContent);
+            actionsDiv.querySelector('.btn-secondary').onclick = () => cancelEdit(messageId, messageDiv, originalContent);
         }
         
         function saveEdit(messageId, messageDiv, originalContent) {
@@ -361,18 +372,26 @@
             
             // Restore action buttons
             const actionsDiv = document.querySelector(`#message-${messageId} .message-actions`);
-            actionsDiv.innerHTML = `
-                <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editMessage(${messageId})">
-                    <i class="bi bi-pencil"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger btn-delete" 
-                        hx-delete="/api/delete_message/${messageId}"
-                        hx-target="#message-${messageId}"
-                        hx-swap="outerHTML swap:0.5s"
-                        hx-confirm="Bạn có chắc muốn xóa tin nhắn này?">
-                    <i class="bi bi-trash"></i>
-                </button>
-            `;
+            const messageElement = document.getElementById(`message-${messageId}`);
+            // Kiểm tra xem tin nhắn này có phải của mình không (dựa vào class message-right)
+            const isMyMessage = messageElement.classList.contains('message-right');
+
+            if (isMyMessage) {
+                actionsDiv.innerHTML = `
+                    <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editMessage(${messageId})">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger btn-delete" 
+                            hx-delete="/api/delete_message/${messageId}"
+                            hx-target="#message-${messageId}"
+                            hx-swap="outerHTML swap:0.5s"
+                            hx-confirm="Xóa tin nhắn này?">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                `;
+            } else {
+                actionsDiv.innerHTML = ''; // Ẩn hoàn toàn nút sửa/xóa
+            }
             htmx.process(actionsDiv);
         }
         
@@ -402,6 +421,23 @@
             const messagesArea = document.getElementById('messages-area');
             messagesArea.scrollTop = messagesArea.scrollHeight;
         });
+
+        // Bấm Enter = Lưu, Escape = Hủy – giống Messenger 100%
+        document.body.addEventListener('keydown', function(e) {
+            const editing = document.querySelector('.message-text.editing');
+            if (!editing) return;
+
+            const messageId = editing.closest('[id^="message-"]').id.split('-')[1];
+
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                saveEdit(messageId, editing, editing.textContent);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit(messageId, editing, editing.dataset.original || editing.textContent);
+            }
+        });
+
     </script>
 </body>
 </html>
