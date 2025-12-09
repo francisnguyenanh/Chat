@@ -55,8 +55,9 @@
         <!-- Input Area -->
         <div class="input-area">
             <form hx-post="/api/send_message"
-                  hx-swap="none"
-                  hx-on::after-request="this.reset();">
+                  hx-target="#messages-area"
+                    hx-swap="beforeend"
+                    hx-on::after-request="this.reset(); updateLastCheck(); scrollToBottom();">
                 <div class="input-group">
                     <label for="file-input" class="btn btn-outline-secondary">
                         <i class="bi bi-paperclip"></i>
@@ -254,14 +255,24 @@
                 }
             }
         });
+
+        function scrollToBottom() {
+            const area = document.getElementById('messages-area');
+            area.scrollTop = area.scrollHeight;
+        }
+
+        document.body.addEventListener('htmx:afterSettle', scrollToBottom);
+        
         document.body.addEventListener('htmx:afterRequest', function(e) {
-            if (e.detail.xhr.requestConfig?.elt?.id === 'poll') {
+            if (e.detail.xhr.requestConfig?.elt?.id === 'poll' && e.detail.xhr.responseText.trim()) {
                 updateLastCheck();
             }
         });
+        
+
+        // Thay đoạn afterSettle cũ bằng cái này (mượt hơn)
         document.body.addEventListener('htmx:afterSettle', () => {
-            const area = document.getElementById('messages-area');
-            area.scrollTop = area.scrollHeight;
+            scrollToBottom();
         });
                 
         // Theme toggle
