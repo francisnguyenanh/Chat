@@ -43,20 +43,20 @@
         </div>
         
         <!-- Polling for new messages every 2 seconds (only when active and not idle) -->
-        <div id="polling-trigger"
-             hx-get="/api/messages"
-             hx-trigger="every 2s [!isTabHidden() && !isUserIdle()]"
-             hx-target="#messages-area"
-             hx-swap="beforeend scroll:bottom"
-             hx-vals="js:{last_check: getLastCheck()}"
-             style="display: none;">
+        <div id="poll"
+            hx-get="/api/messages"
+            hx-trigger="every 2s"
+            hx-target="#messages-area"
+            hx-swap="beforeend"
+            hx-vals="js:{last_check: getLastCheck()}"
+            style="display:none">
         </div>
         
         <!-- Input Area -->
         <div class="input-area">
             <form hx-post="/api/send_message"
                   hx-swap="none"
-                  hx-on::after-request="this.reset(); updateLastCheck();">
+                  hx-on::after-request="this.reset();">
                 <div class="input-group">
                     <label for="file-input" class="btn btn-outline-secondary">
                         <i class="bi bi-paperclip"></i>
@@ -66,7 +66,7 @@
                            hx-post="/api/upload_file"
                            hx-encoding="multipart/form-data"
                            hx-swap="none"
-                           hx-on::after-request="this.value=''; updateLastCheck();">
+                           hx-on::after-request="this.value='';">
                     
                     <input type="text" class="form-control" name="message" id="message-input" 
                            placeholder="Nhập tin nhắn..." autocomplete="off" required>
@@ -119,7 +119,7 @@
         }
         
         function updateLastCheck() {
-            lastCheckTimestamp = Date.now() / 1000;
+            lastCheckTimestamp = Date.now(); // ← Giữ nguyên milliseconds (không chia 1000)
         }
         
         function isTabHidden() {
@@ -227,13 +227,15 @@
             
             convertToJapanTime();
             // Always update last check after every response (even if empty)
-            updateLastCheck();
-            
+            if (e.detail.requestConfig?.path === '/api/messages/all') {
+                updateLastCheck(); // Cập nhật last_check sau khi load toàn bộ tin nhắn lần đầu
+            }
             // Auto-scroll to bottom after initial load
             if (e.detail.target.id === 'messages-area' && e.detail.requestConfig.path === '/api/messages/all') {
                 const messagesArea = document.getElementById('messages-area');
                 messagesArea.scrollTop = messagesArea.scrollHeight;
             }
+            
             
             // Check for new messages from other users (polling response)
             if (e.detail.requestConfig.path && e.detail.requestConfig.path.includes('/api/messages?')) {
@@ -256,21 +258,16 @@
                 }
             }
         });
-        document.body.addEventListener('htmx:afterRequest', (e) => {
-            // Update last check after polling request completes
-            if (e.detail.target && e.detail.target.id === 'polling-trigger') {
+        document.body.addEventListener('htmx:afterRequest', function(e) {
+            if (e.detail.xhr.requestConfig?.elt?.id === 'poll') {
                 updateLastCheck();
             }
         });
-        document.body.addEventListener('htmx:afterSettle', (e) => {
-            const messagesArea = document.getElementById('messages-area');
-            // Only auto-scroll if user is near bottom (within 100px)
-            const isNearBottom = messagesArea.scrollHeight - messagesArea.scrollTop - messagesArea.clientHeight < 100;
-            if (isNearBottom) {
-                messagesArea.scrollTop = messagesArea.scrollHeight;
-            }
+        document.body.addEventListener('htmx:afterSettle', () => {
+            const area = document.getElementById('messages-area');
+            area.scrollTop = area.scrollHeight;
         });
-        
+                
         // Theme toggle
         const themeToggle = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-icon');
@@ -384,6 +381,13 @@
                     picker.style.display = 'none';
                 });
             }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLastCheck(); // Cập nhật ngay khi load xong
+            convertToJapanTime();
+            const messagesArea = document.getElementById('messages-area');
+            messagesArea.scrollTop = messagesArea.scrollHeight;
         });
     </script>
 </body>

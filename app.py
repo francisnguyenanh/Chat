@@ -182,9 +182,7 @@ def get_messages():
         # Convert JavaScript timestamp (milliseconds since epoch) to datetime
         # JavaScript uses milliseconds, Python uses seconds
         # Also, we need to use UTC time to match database
-        import time
-        last_check_dt = datetime.utcfromtimestamp(last_check)
-        print(f"[DEBUG] last_check_dt={last_check_dt}, current UTC={datetime.utcnow()}")
+        last_check_dt = datetime.utcfromtimestamp(last_check / 1000.0)  # Chia cho 1000!
     else:
         last_check_dt = datetime.min
     
