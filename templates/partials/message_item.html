@@ -2,39 +2,62 @@
      data-message-id="{{ message.id }}" 
      id="message-{{ message.id }}">
     <div class="message-content">
-        <!-- Hàng đầu tiên: Author, Reaction, Action, Time -->
-        <div class="d-flex align-items-center justify-content-between mb-1">
-            <div class="d-flex align-items-center gap-2">
-                
-                
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                
-                {% if message.user_id == current_user.id or current_user.is_admin %}
-                <span class="message-actions">
-                    {% if message.user_id == current_user.id %}
-                    <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editMessage({{ message.id }})">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    {% endif %}
-                    <button class="btn btn-sm btn-outline-danger btn-delete" 
-                            hx-delete="/api/delete_message/{{ message.id }}"
-                            hx-target="#message-{{ message.id }}"
-                            hx-swap="outerHTML swap:0.5s"
-                            hx-confirm="Bạn có chắc muốn xóa tin nhắn này?">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </span>
+        <!-- Hàng đầu tiên: layout khác nhau cho left/right -->
+        {% if message.user_id == current_user.id %}
+        <!-- Tin nhắn bên phải: căn phải, thứ tự actions, reactions, author, time -->
+        <div class="d-flex align-items-center justify-content-end gap-2 mb-1">
+            {% if message.user_id == current_user.id or current_user.is_admin %}
+            <span class="message-actions">
+                {% if message.user_id == current_user.id %}
+                <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editMessage({{ message.id }})">
+                    <i class="bi bi-pencil"></i>
+                </button>
                 {% endif %}
-                <span class="message-reactions" id="reactions-{{ message.id }}">
-                    {% include 'partials/reactions.html' %}
-                </span>
-                <span class="message-author">{{ message.author.username }}</span>
-                <span class="message-time ms-2">
-                    <span class="timestamp" data-utc="{{ message.timestamp.isoformat() }}">{{ message.timestamp.strftime('%H:%M') }}</span>
-                </span>
-            </div>
+                <button class="btn btn-sm btn-outline-danger btn-delete" 
+                        hx-delete="/api/delete_message/{{ message.id }}"
+                        hx-target="#message-{{ message.id }}"
+                        hx-swap="outerHTML swap:0.5s"
+                        hx-confirm="Bạn có chắc muốn xóa tin nhắn này?">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </span>
+            {% endif %}
+            <span class="message-reactions" id="reactions-{{ message.id }}">
+                {% include 'partials/reactions.html' %}
+            </span>
+            <span class="message-author">{{ message.author.username }}</span>
+            <span class="message-time ms-2">
+                <span class="timestamp" data-utc="{{ message.timestamp.isoformat() }}">{{ message.timestamp.strftime('%H:%M') }}</span>
+            </span>
         </div>
+        {% else %}
+        <!-- Tin nhắn bên trái: căn trái, thứ tự time, author, reactions, actions -->
+        <div class="d-flex align-items-center justify-content-start gap-2 mb-1">
+            <span class="message-time me-2">
+                <span class="timestamp" data-utc="{{ message.timestamp.isoformat() }}">{{ message.timestamp.strftime('%H:%M') }}</span>
+            </span>
+            <span class="message-author">{{ message.author.username }}</span>
+            <span class="message-reactions" id="reactions-{{ message.id }}">
+                {% include 'partials/reactions.html' %}
+            </span>
+            {% if message.user_id == current_user.id or current_user.is_admin %}
+            <span class="message-actions">
+                {% if message.user_id == current_user.id %}
+                <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editMessage({{ message.id }})">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                {% endif %}
+                <button class="btn btn-sm btn-outline-danger btn-delete" 
+                        hx-delete="/api/delete_message/{{ message.id }}"
+                        hx-target="#message-{{ message.id }}"
+                        hx-swap="outerHTML swap:0.5s"
+                        hx-confirm="Bạn có chắc muốn xóa tin nhắn này?">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </span>
+            {% endif %}
+        </div>
+        {% endif %}
         <!-- Nội dung tin nhắn -->
         <div class="message-text" contenteditable="false">{{ message.content }}</div>
         {% if message.edited_at %}
