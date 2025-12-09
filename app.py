@@ -288,56 +288,50 @@ def delete_message(message_id):
 @app.route('/api/upload_file', methods=['POST'])
 @login_required
 def upload_file():
-    """Upload a file"""
-    if 'file' not in request.files:
+    """Upload one or multiple files"""
+    files = request.files.getlist('file')
+    if not files or files[0].filename == '':
         return 'No file', 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return 'No file', 400
-    
-    # Check file type
-    filename = secure_filename(file.filename)
-    ext = os.path.splitext(filename)[1].lower()
-    
+
     allowed_images = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
     allowed_archives = {'.zip', '.rar', '.7z'}
-    
-    if ext in allowed_images:
-        file_type = 'image'
-    elif ext in allowed_archives:
-        file_type = 'file'
-    else:
-        return 'File type not allowed', 400
-    
-    # Generate unique filename
-    unique_filename = f"{uuid.uuid4().hex}{ext}"
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-    
-    # Save file
-    file.save(file_path)
-    file_size = os.path.getsize(file_path)
-    
-    # Check file size
-    if file_size > app.config['MAX_CONTENT_LENGTH']:
-        os.remove(file_path)
-        return 'File quá lớn (tối đa 5MB)', 400
-    
-    # Save to database
-    file_record = File(
-        user_id=current_user.id,
-        filename=unique_filename,
-        original_filename=filename,
-        file_type=file_type,
-        file_size=file_size
-    )
-    db.session.add(file_record)
+    file_items = []
+
+    for file in files:
+        filename = secure_filename(file.filename)
+        ext = os.path.splitext(filename)[1].lower()
+        if ext in allowed_images:
+            file_type = 'image'
+        elif ext in allowed_archives:
+            file_type = 'file'
+        else:
+            continue  # skip unsupported
+
+        unique_filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        file.save(file_path)
+        file_size = os.path.getsize(file_path)
+        if file_size > app.config['MAX_CONTENT_LENGTH']:
+            os.remove(file_path)
+            continue  # skip too large
+
+        file_record = File(
+            user_id=current_user.id,
+            filename=unique_filename,
+            original_filename=filename,
+            file_type=file_type,
+            file_size=file_size
+        )
+        db.session.add(file_record)
+        file_items.append(file_record)
+
     db.session.commit()
-    
-    # Return the new file HTML
-    return render_template('partials/file_item.html', 
-                         file=file_record,
-                         current_user=current_user)
+
+    # Trả về HTML của tất cả file vừa upload
+    rendered = ""
+    for file_record in file_items:
+        rendered += render_template('partials/file_item.html', file=file_record, current_user=current_user)
+    return rendered, 200
 
 
 @app.route('/api/delete_file/<int:file_id>', methods=['DELETE'])

@@ -53,24 +53,16 @@
         </div>
         
         <!-- Input Area -->
-        <div class="input-area">
+        <div class="input-area" id="chat-dropzone">
             <form hx-post="/api/send_message"
                   hx-target="#messages-area"
                     hx-swap="beforeend"
                     hx-on::after-request="this.reset(); updateLastCheck(); scrollToBottom();">
                 <div class="input-group">
-                    <label for="file-input" class="btn btn-outline-secondary">
-                        <i class="bi bi-paperclip"></i>
-                    </label>
-                    <input type="file" id="file-input" name="file" style="display: none;" 
-                           accept="image/*,.zip,.rar,.7z"
-                           hx-post="/api/upload_file"
-                           hx-encoding="multipart/form-data"
-                           hx-swap="none"
-                           hx-on::after-request="this.value='';">
+
                     
                     <input type="text" class="form-control" name="message" id="message-input" 
-                           placeholder="Nhập tin nhắn..." autocomplete="off" required>
+                           placeholder="Nhập tin nhắn..." autocomplete="off">
                     
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-send"></i> Gửi
@@ -331,11 +323,6 @@
             }
         });
         
-        // File input trigger
-        document.querySelector('label[for="file-input"]').addEventListener('click', () => {
-            document.getElementById('file-input').click();
-        });
-        
         // Edit message
         function editMessage(messageId) {
             const messageDiv = document.querySelector(`#message-${messageId} .message-text`);
@@ -488,6 +475,109 @@
             // Tự đóng sau 5 giây
             setTimeout(() => notif.close(), 5000);
         }
+
+        // Kéo thả file/hình vào messages-area
+        const dropzone = document.querySelector('.messages-area');
+        dropzone.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        dropzone.addEventListener('dragleave', e => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+        });
+        dropzone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFiles(e.dataTransfer.files);
+            }
+        });
+
+        // Dán hình ảnh từ clipboard
+        document.addEventListener('paste', function(e) {
+            if (e.clipboardData && e.clipboardData.items) {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].kind === 'file') {
+                        const file = items[i].getAsFile();
+                        handleFiles([file]);
+                        e.preventDefault();
+                    }
+                }
+            }
+        });
+
+        // Xử lý gửi file/hình
+        let pendingFiles = [];
+        function handleFiles(files) {
+            for (let i = 0; i < files.length; i++) {
+                pendingFiles.push(files[i]);
+            }
+            showPendingFiles();
+        }
+
+        // Hiển thị file/hình chờ gửi
+        function showPendingFiles() {
+            let preview = document.getElementById('pending-files-preview');
+            if (!preview) {
+                preview = document.createElement('div');
+                preview.id = 'pending-files-preview';
+                preview.style.margin = '8px 0';
+                document.querySelector('.input-area').prepend(preview);
+            }
+            preview.innerHTML = '';
+            pendingFiles.forEach((file, idx) => {
+                if (file.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.style.maxWidth = '60px';
+                    img.style.maxHeight = '60px';
+                    img.style.marginRight = '8px';
+                    img.title = file.name;
+                    preview.appendChild(img);
+                } else {
+                    const span = document.createElement('span');
+                    span.textContent = file.name;
+                    span.style.marginRight = '8px';
+                    preview.appendChild(span);
+                }
+                // Nút xóa file khỏi hàng chờ
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = '✕';
+                btn.className = 'btn btn-sm btn-link text-danger';
+                btn.onclick = () => {
+                    pendingFiles.splice(idx, 1);
+                    showPendingFiles();
+                };
+                preview.appendChild(btn);
+            });
+            if (pendingFiles.length === 0) preview.remove();
+        }
+
+        // Khi gửi form, gửi kèm file/hình nếu có
+        document.querySelector('.input-area form').addEventListener('submit', function(e) {
+            if (pendingFiles.length > 0) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                pendingFiles.forEach(file => formData.append('file', file));
+                fetch('/api/upload_file', {
+                    method: 'POST',
+                    body: formData
+                }).then(res => res.text())
+                .then(html => {
+                    pendingFiles = [];
+                    showPendingFiles();
+                    // Thêm file vào khung chat
+                    document.getElementById('messages-area').insertAdjacentHTML('beforeend', html);
+                    // Sau khi gửi file xong, gửi tin nhắn nếu có nội dung
+                    if (formData.get('message')) {
+                        this.submit();
+                    }
+                });
+            }
+        });
 
     </script>
 

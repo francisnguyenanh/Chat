@@ -2,7 +2,7 @@
      data-file-id="{{ file.id }}" 
      id="file-{{ file.id }}">
     <div class="message-content">
-        <div class="message-author">{{ file.author.username }}</div>
+        <div class="message-author">{{ file.uploader.username }}</div>
         <div class="file-preview">
             {% if file.file_type == 'image' %}
                 <img src="{{ url_for('uploaded_file', filename=file.filename) }}" 
