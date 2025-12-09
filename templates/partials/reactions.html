@@ -16,7 +16,7 @@
 
 <!-- Reaction picker popup -->
 <div class="reaction-picker" id="reaction-picker-{{ message.id }}" style="display: none;">
-    {% for emoji in ['👍', '❤️', '😂', '😮', '😢'] %}
+    {% for emoji in ['🙈', '🙉', '🙊', '🤗', '🤩', '😷', '😎', '🥹', '😮', '😭', '🤣', '🤮', '😋'] %}
     <button class="reaction-emoji" 
             hx-post="/api/add_reaction/{{ message.id }}"
             hx-vals='{"emoji": "{{ emoji }}"}'

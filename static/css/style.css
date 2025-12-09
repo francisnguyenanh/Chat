@@ -740,6 +740,6 @@ button {
 /* Nếu muốn nút nhỏ hơn nữa */
 .message-content .reaction-btn,
 .message-content .btn-add-reaction {
-    padding: 2px 4px !important;
+    padding: 1px 0.5px !important;
 }
 
