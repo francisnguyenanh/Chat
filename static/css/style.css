@@ -714,7 +714,7 @@ button {
 
 /* Nội dung tin nhắn: giảm font và min-height */
 .message-text {
-    font-size: 18px;
+    font-size: 14px;
     min-height: 16px;
     padding: 0;
     margin: 0;
