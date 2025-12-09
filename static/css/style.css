@@ -331,16 +331,6 @@ message-left .message-content {
     border-color: rgba(255,255,255,0.6);
 }
 
-/* Add Reaction Button */
-.btn-add-reaction {
-    background: rgba(0,0,0,0.05);
-    border: 1px dashed rgba(0,0,0,0.2);
-    border-radius: 12px;
-    padding: 3px 8px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
 
 [data-theme="dark"] .btn-add-reaction {
     background: rgba(255,255,255,0.05);
@@ -691,3 +681,65 @@ button {
     font-size: 16px;
     cursor: pointer;
 }
+
+.text-pink   { color: #fd7e14 !important; }
+
+/* ...existing code... */
+
+.message-content {
+    max-width: 60%;
+    padding: 2px 6px;      /* Giảm padding */
+    border-radius: 14px;   /* Có thể giảm bán kính */
+    position: relative;
+    word-wrap: break-word;
+}
+
+/* Hàng đầu tiên: giảm gap và margin */
+.message-content .d-flex.align-items-center.justify-content-between {
+    margin-bottom: 2px;    /* Giảm margin dưới */
+}
+
+.message-content .gap-2 {
+    gap: 4px !important;   /* Giảm gap giữa các phần tử */
+}
+
+/* Author, time, actions: giảm font và margin */
+.message-author,
+.message-time,
+.message-actions {
+    font-size: 11px;
+    margin-bottom: 0;
+    padding: 0;
+}
+
+/* Nội dung tin nhắn: giảm font và min-height */
+.message-text {
+    font-size: 18px;
+    min-height: 16px;
+    padding: 0;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Giảm chiều cao hàng đầu tiên trong message-content */
+.message-content .d-flex.align-items-center.justify-content-between {
+    margin-bottom: 2px;
+    min-height: 22px;      /* Giảm chiều cao tối thiểu */
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* Giảm kích thước các phần tử bên trong */
+.message-content .gap-2 > * {
+    margin-right: 4px !important;
+    margin-left: 0 !important;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* Nếu muốn nút nhỏ hơn nữa */
+.message-content .reaction-btn,
+.message-content .btn-add-reaction {
+    padding: 2px 4px !important;
+}
+
