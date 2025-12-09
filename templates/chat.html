@@ -238,23 +238,19 @@
             
             
             // Check for new messages from other users (polling response)
-            if (e.detail.requestConfig.path && e.detail.requestConfig.path.includes('/api/messages?')) {
+            if (e.detail.xhr.responseURL && e.detail.xhr.responseURL.includes('/api/messages')) {
                 const newContent = e.detail.xhr.responseText;
-                // If there's new content and tab is hidden or user is idle, show notification
-                if (newContent && newContent.trim() !== '' && (tabHidden || userIdle)) {
-                    // Parse to check if message is from another user
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = newContent;
-                    const messages = tempDiv.querySelectorAll('.message');
-                    
-                    messages.forEach(msg => {
-                        const messageDiv = msg.querySelector('.message-content');
-                        const author = msg.querySelector('.message-author');
-                        if (author && author.textContent.trim() !== CURRENT_USERNAME) {
+                if (newContent && newContent.trim() !== '' && (document.hidden || userIdle)) {
+                    const temp = document.createElement('div');
+                    temp.innerHTML = newContent;
+                    const newMessages = temp.querySelectorAll('.message-author');
+                    for (const authorEl of newMessages) {
+                        if (authorEl.textContent.trim() !== CURRENT_USERNAME) {
                             hasUnread = true;
-                            document.title = '🔴 ' + originalTitle;
+                            document.title = '🔴 ahihi';
+                            break;
                         }
-                    });
+                    }
                 }
             }
         });
