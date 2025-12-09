@@ -5,37 +5,54 @@
         <div class="message-author">{{ file.uploader.username }}</div>
         <div class="file-preview">
             {% if file.file_type == 'image' %}
-                <img src="{{ url_for('uploaded_file', filename=file.filename) }}" 
-                     alt="{{ file.original_filename }}" 
-                     class="uploaded-image">
+                <a href="{{ url_for('uploaded_file', filename=file.filename) }}" target="_blank" rel="noopener">
+                    <img src="{{ url_for('uploaded_file', filename=file.filename) }}" 
+                         alt="{{ file.original_filename }}" 
+                         class="uploaded-image" style="max-width:120px;max-height:120px;cursor:pointer;">
+                </a>
+                <!-- Hàng nút chức năng -->
+                <div class="d-flex align-items-center gap-2 mt-1">
+                    <a href="{{ url_for('uploaded_file', filename=file.filename) }}" 
+                       class="btn btn-sm btn-outline-secondary"
+                       download="{{ file.original_filename }}">
+                        <i class="bi bi-download"></i> Tải ảnh
+                    </a>
+                    {% if file.user_id == current_user.id or current_user.is_admin %}
+                    <button class="btn btn-sm btn-outline-danger" 
+                            hx-delete="/api/delete_file/{{ file.id }}"
+                            hx-target="#file-{{ file.id }}"
+                            hx-swap="outerHTML swap:0.5s"
+                            hx-confirm="Bạn có chắc muốn xóa file này?">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    {% endif %}
+                </div>
             {% else %}
                 <div class="file-info">
                     <i class="bi bi-file-earmark-zip fs-1"></i>
                     <p class="mb-0">{{ file.original_filename }}</p>
                     <small class="text-muted">{{ "%.2f"|format(file.file_size / 1024 / 1024) }} MB</small>
-                    <a href="{{ url_for('uploaded_file', filename=file.filename) }}" 
-                       class="btn btn-sm btn-primary mt-2" 
-                       download="{{ file.original_filename }}">
-                        <i class="bi bi-download"></i> Tải xuống
-                    </a>
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <a href="{{ url_for('uploaded_file', filename=file.filename) }}" 
+                           class="btn btn-sm btn-primary"
+                           download="{{ file.original_filename }}">
+                            <i class="bi bi-download"></i> Tải xuống
+                        </a>
+                        {% if file.user_id == current_user.id or current_user.is_admin %}
+                        <button class="btn btn-sm btn-outline-danger" 
+                                hx-delete="/api/delete_file/{{ file.id }}"
+                                hx-target="#file-{{ file.id }}"
+                                hx-swap="outerHTML swap:0.5s"
+                                hx-confirm="Bạn có chắc muốn xóa file này?">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
             {% endif %}
         </div>
         <div class="message-time">
             <span class="timestamp" data-utc="{{ file.upload_time.isoformat() }}">{{ file.upload_time.strftime('%H:%M') }}</span>
         </div>
-        
-        <!-- Delete button -->
-        {% if file.user_id == current_user.id or current_user.is_admin %}
-        <div class="message-actions">
-            <button class="btn btn-sm btn-outline-danger" 
-                    hx-delete="/api/delete_file/{{ file.id }}"
-                    hx-target="#file-{{ file.id }}"
-                    hx-swap="outerHTML swap:0.5s"
-                    hx-confirm="Bạn có chắc muốn xóa file này?">
-                <i class="bi bi-trash"></i>
-            </button>
-        </div>
-        {% endif %}
     </div>
 </div>
