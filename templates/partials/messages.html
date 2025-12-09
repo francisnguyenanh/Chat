@@ -1,11 +1,11 @@
-{% if messages %}
-    {% for message in messages %}
-        {% include 'partials/message_item.html' %}
-    {% endfor %}
-{% endif %}
-
-{% if files %}
-    {% for file in files %}
-        {% include 'partials/file_item.html' %}
+{% if combined %}
+    {% for item in combined %}
+        {% if item.type == 'message' %}
+            {% set message = item.obj %}
+            {% include 'partials/message_item.html' %}
+        {% elif item.type == 'file' %}
+            {% set file = item.obj %}
+            {% include 'partials/file_item.html' %}
+        {% endif %}
     {% endfor %}
 {% endif %}

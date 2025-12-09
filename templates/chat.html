@@ -178,7 +178,6 @@
             messagesArea.scrollTop = messagesArea.scrollHeight;
         });
         document.body.addEventListener('htmx:beforeSwap', (e) => {
-            // Prevent duplicate messages by checking existing IDs
             if (e.detail.target.id === 'messages-area' && e.detail.xhr.responseText) {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = e.detail.xhr.responseText;
@@ -200,13 +199,11 @@
                 });
                 
                 // Only swap if there's actually new content
-                if (!hasNewContent && tempDiv.innerHTML.trim() === '') {
+                if (!hasNewContent || tempDiv.innerHTML.trim() === '') {
                     e.detail.shouldSwap = false;
                 } else {
                     // Update content to filtered version
-                    const filteredHTML = tempDiv.innerHTML;
-                    // We'll inject this manually in afterSwap
-                    e.detail.filteredContent = filteredHTML;
+                    e.detail.xhr.responseText = tempDiv.innerHTML;
                 }
             }
         });
@@ -558,26 +555,27 @@
 
         // Khi gửi form, gửi kèm file/hình nếu có
         document.querySelector('.input-area form').addEventListener('submit', function(e) {
-            if (pendingFiles.length > 0) {
-                e.preventDefault();
-                const formData = new FormData(this);
-                pendingFiles.forEach(file => formData.append('file', file));
-                fetch('/api/upload_file', {
-                    method: 'POST',
-                    body: formData
-                }).then(res => res.text())
-                .then(html => {
-                    pendingFiles = [];
-                    showPendingFiles();
-                    // Thêm file vào khung chat
-                    document.getElementById('messages-area').insertAdjacentHTML('beforeend', html);
-                    // Sau khi gửi file xong, gửi tin nhắn nếu có nội dung
-                    if (formData.get('message')) {
-                        this.submit();
-                    }
-                });
-            }
-        });
+        if (pendingFiles.length > 0) {
+            e.preventDefault();
+            const formData = new FormData();
+            pendingFiles.forEach(file => formData.append('file', file));
+            fetch('/api/upload_file', {
+                method: 'POST',
+                body: formData
+            }).then(res => res.text())
+            .then(html => {
+                pendingFiles = [];
+                showPendingFiles();
+                // Thêm file vào khung chat
+                document.getElementById('messages-area').insertAdjacentHTML('beforeend', html);
+                // Sau khi upload file xong, nếu có message thì gửi tiếp message
+                if (this.message.value.trim()) {
+                    this.submit();
+                }
+            });
+        }
+        // Nếu không có file, form sẽ gửi message như bình thường (HTMX)
+    });
 
     </script>
 

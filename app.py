@@ -174,55 +174,62 @@ def uploaded_file(filename):
 def get_messages():
     """Get all messages and files (for polling)"""
     last_check = request.args.get('last_check', type=float, default=0)
-    
-    # Debug logging
-    print(f"[DEBUG] User {current_user.username} polling with last_check={last_check}")
-    
     if last_check > 0:
-        # Convert JavaScript timestamp (milliseconds since epoch) to datetime
-        # JavaScript uses milliseconds, Python uses seconds
-        # Also, we need to use UTC time to match database
-        last_check_dt = datetime.utcfromtimestamp(last_check / 1000.0)  # Chia cho 1000!
+        last_check_dt = datetime.utcfromtimestamp(last_check / 1000.0)
     else:
         last_check_dt = datetime.min
-    
+
     # Get new messages
     new_messages = Message.query.filter(Message.timestamp > last_check_dt).order_by(Message.timestamp.asc()).all()
-    
     # Get new files
     new_files = File.query.filter(File.upload_time > last_check_dt).order_by(File.upload_time.asc()).all()
-    
     # Check for edited messages
     edited_messages = Message.query.filter(Message.edited_at > last_check_dt).all() if last_check > 0 else []
-    
-    # Debug logging
-    print(f"[DEBUG] Found {len(new_messages)} new messages, {len(new_files)} new files, {len(edited_messages)} edited")
-    if new_messages:
-        print(f"[DEBUG] New message timestamps: {[m.timestamp for m in new_messages]}")
-    
-    # If nothing changed, return empty (HTMX will not update DOM)
-    if not new_messages and not new_files and not edited_messages:
+
+    # Gộp lại thành 1 list, mỗi phần tử là dict: {'type': 'message'/'file', 'obj': ...}
+    combined = (
+        [{'type': 'message', 'obj': m, 'time': m.timestamp} for m in new_messages] +
+        [{'type': 'file', 'obj': f, 'time': f.upload_time} for f in new_files]
+    )
+
+    # Thêm các message đã chỉnh sửa (nếu có)
+    for m in edited_messages:
+        combined.append({'type': 'message', 'obj': m, 'time': m.timestamp})
+
+    # Sắp xếp theo thời gian tăng dần
+    combined.sort(key=lambda x: x['time'])
+
+    # Nếu không có gì mới, trả về rỗng
+    if not combined:
         return '', 204
-    
-    return render_template('partials/messages.html', 
-                         messages=new_messages, 
-                         files=new_files,
-                         current_user=current_user)
+
+    return render_template('partials/messages.html',
+                          combined=combined,
+                          current_user=current_user)
 
 
 @app.route('/api/messages/all')
 @login_required
 def get_all_messages():
     """Get all messages and files (initial load)"""
+    # Lấy 100 message và 100 file gần nhất
     messages = Message.query.order_by(Message.timestamp.desc()).limit(100).all()
-    messages.reverse()
-    
-    files = File.query.order_by(File.upload_time.desc()).limit(50).all()
-    files.reverse()
-    
+    files = File.query.order_by(File.upload_time.desc()).limit(100).all()
+
+    # Gộp lại thành 1 list, mỗi phần tử là dict: {'type': 'message'/'file', 'obj': ...}
+    combined = (
+        [{'type': 'message', 'obj': m, 'time': m.timestamp} for m in messages] +
+        [{'type': 'file', 'obj': f, 'time': f.upload_time} for f in files]
+    )
+
+    # Sắp xếp theo thời gian tăng dần (tin nhắn cũ ở trên, mới ở dưới)
+    combined.sort(key=lambda x: x['time'])
+
+    # Chỉ lấy 100 bản ghi mới nhất (nếu muốn)
+    combined = combined[-100:]
+
     return render_template('partials/messages.html', 
-                         messages=messages, 
-                         files=files,
+                         combined=combined,
                          current_user=current_user)
 
 
