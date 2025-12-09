@@ -262,7 +262,7 @@
         }
 
         document.body.addEventListener('htmx:afterSettle', scrollToBottom);
-        
+
         document.body.addEventListener('htmx:afterRequest', function(e) {
             if (e.detail.xhr.requestConfig?.elt?.id === 'poll' && e.detail.xhr.responseText.trim()) {
                 updateLastCheck();
@@ -278,8 +278,14 @@
         // Theme toggle
         const themeToggle = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-icon');
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const savedTheme = localStorage.getItem('theme');
+
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        } else {
+            document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+        }
         
         if (savedTheme === 'dark') {
             themeIcon.classList.remove('bi-moon-stars');
