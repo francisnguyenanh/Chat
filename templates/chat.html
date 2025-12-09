@@ -239,18 +239,41 @@
             
             
             // Check for new messages from other users (polling response)
+            // HIỂN THỊ THÔNG BÁO KHI CÓ TIN NHẮN MỚI (góc dưới phải)
             if (e.detail.xhr.responseURL && e.detail.xhr.responseURL.includes('/api/messages')) {
-                const newContent = e.detail.xhr.responseText;
-                if (newContent && newContent.trim() !== '' && (document.hidden || userIdle)) {
+                const newContent = e.detail.xhr.responseText.trim();
+                if (newContent && (document.hidden || userIdle)) {
                     const temp = document.createElement('div');
                     temp.innerHTML = newContent;
-                    const newMessages = temp.querySelectorAll('.message-author');
-                    for (const authorEl of newMessages) {
-                        if (authorEl.textContent.trim() !== CURRENT_USERNAME) {
-                            hasUnread = true;
-                            document.title = '🔴 ahihi';
-                            break;
-                        }
+                    const hasNewFromOthers = Array.from(temp.querySelectorAll('.message-author'))
+                        .some(el => el.textContent.trim() !== CURRENT_USERNAME);
+
+                    if (hasNewFromOthers) {
+                        hasUnread = true;
+                        document.title = '🔴 ahihi';
+
+                        // 1. Thông báo trong trang (góc dưới phải)
+                        const notif = document.getElementById('chat-notification');
+                        notif.classList.add('show');
+                        clearTimeout(notif.hideTimeout);
+                        notif.hideTimeout = setTimeout(() => notif.classList.remove('show'), 5000);
+
+                        // 2. THÔNG BÁO HỆ THỐNG (giống Google Chat – hoạt động khi tab ẩn!)
+                        showSystemNotification();
+
+                        // Tự ẩn sau 5 giây
+                        clearTimeout(notif.hideTimeout);
+                        notif.hideTimeout = setTimeout(() => {
+                            notif.classList.remove('show');
+                        }, 5000);
+
+                        // Click vào thông báo → cuộn xuống và tắt
+                        notif.onclick = () => {
+                            scrollToBottom();
+                            notif.classList.remove('show');
+                            document.title = originalTitle;
+                            hasUnread = false;
+                        };
                     }
                 }
             }
@@ -438,6 +461,41 @@
             }
         });
 
+        // YÊU CẦU QUYỀN THÔNG BÁO HỆ THỐNG (chỉ hỏi 1 lần)
+        if (Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+
+        // HIỂN THỊ THÔNG BÁO HỆ THỐNG (giống Google Chat/Facebook)
+        function showSystemNotification() {
+            if (Notification.permission !== "granted") return;
+
+            const notif = new Notification("Chat App", {
+                body: "Có tin nhắn mới",
+                icon: "/static/favicon.ico", // thay bằng icon của bạn
+                tag: "chat-new-message",     // tránh spam
+                renotify: true,
+                requireInteraction: false,
+                silent: false
+            });
+
+            // Click vào thông báo → mở tab + cuộn xuống
+            notif.onclick = () => {
+                window.focus();
+                scrollToBottom();
+            };
+
+            // Tự đóng sau 5 giây
+            setTimeout(() => notif.close(), 5000);
+        }
+
     </script>
+
+    <!-- THÔNG BÁO TIN NHẮN MỚI -->
+    <div id="chat-notification">
+        <i class="bi bi-chat-dots-fill"></i>
+        <span>🔴 ahihi</span>
+        <button class="close-notif" onclick="this.parentElement.classList.remove('show')">&times;</button>
+    </div>
 </body>
 </html>

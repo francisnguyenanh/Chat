@@ -643,3 +643,51 @@ button {
 .htmx-request { opacity: 0.7; }
 .htmx-added { animation: fadeIn 0.3s; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* THÔNG BÁO TIN NHẮN MỚI – GÓC DƯỚI PHẢI */
+#chat-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 14px 20px;
+    border-radius: 50px;
+    box-shadow: 0 8px 25px rgba(102, 94, 234, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    cursor: pointer;
+    max-width: 320px;
+}
+
+#chat-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+#chat-notification i {
+    font-size: 20px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+#chat-notification .close-notif {
+    margin-left: 10px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    cursor: pointer;
+}
