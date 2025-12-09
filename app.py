@@ -214,7 +214,7 @@ def get_all_messages():
     """Get all messages and files (initial load)"""
     # Lấy 100 message và 100 file gần nhất
     messages = Message.query.order_by(Message.timestamp.desc()).limit(100).all()
-    files = File.query.order_by(File.upload_time.desc()).limit(100).all()
+    files = File.query.order_by(File.upload_time.desc()).limit(5).all()
 
     # Gộp lại thành 1 list, mỗi phần tử là dict: {'type': 'message'/'file', 'obj': ...}
     combined = (
