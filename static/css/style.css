@@ -759,7 +759,7 @@ button {
     position: relative;
     padding-left: 16px;
     margin: 8px 0;
-    border-left: 3px solid #5865f2; /* Màu Discord */
+    border-left: 3px solid #e7a239; /* Màu Discord */
     border-radius: 4px;
 }
 
@@ -780,7 +780,7 @@ button {
 }
 
 .quote-preview strong {
-    color: #5865f2;
+    color: #cf8d12;
     font-weight: 600;
 }
 
@@ -819,7 +819,7 @@ button {
     align-items: center;
     gap: 8px;
     font-weight: 600;
-    color: #5865f2;
+    color: #c54949;
 }
 
 .quote-preview-active .quote-body {
@@ -833,4 +833,43 @@ button {
 }
 .quote-preview-active .btn-close-white:hover {
     opacity: 1;
+}
+
+/* Preview quote khi đang soạn */
+.quote-preview-active {
+    background: rgba(13, 110, 253, 0.08);
+    border: 1px solid rgba(13, 110, 253, 0.25);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin: 10px 0;
+    font-size: 0.95rem;
+    position: relative;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.quote-preview-active:hover {
+    background: rgba(13, 110, 253, 0.12);
+    border-color: rgba(13, 110, 253, 0.4);
+}
+
+.quote-preview-active .btn-close-sm {
+    font-size: 0.8rem;
+    padding: 8px;
+    opacity: 0.6;
+}
+
+.quote-preview-active .btn-close-sm:hover {
+    opacity: 1;
+    background: rgba(220, 53, 69, 0.15);
+    border-radius: 50%;
+}
+
+/* Hiệu ứng nhẹ khi hiện */
+@keyframes quoteSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.quote-preview-active {
+    animation: quoteSlideIn 0.25s ease-out;
 }

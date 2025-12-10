@@ -559,34 +559,35 @@
         }
 
         function quoteMessage(messageId, authorName) {
-            // Xóa quote cũ trước
             clearQuote();
 
-            // Tìm nội dung tin nhắn gốc
             const msgEl = document.getElementById('message-' + messageId);
             const textEl = msgEl?.querySelector('.message-text');
             const content = textEl ? textEl.textContent.trim() : '[Tin nhắn có chứa file]';
 
-            // Tạo preview quote mới
             const preview = document.createElement('div');
             preview.id = 'active-quote-preview';
             preview.className = 'quote-preview-active';
             preview.innerHTML = `
-                <div class="quote-header">
-                    <i class="bi bi-chat-quote me-2"></i>
-                    <span>Đang trả lời <strong>${authorName}</strong></span>
-                    <button type="button" class="btn-close btn-close-white" aria-label="Hủy" onclick="clearQuote()"></button>
-                </div>
-                <div class="quote-body text-muted small">
-                    ${content.substring(0, 120)}${content.length > 120 ? '...' : ''}
+                <div class="d-flex align-items-start justify-content-between w-100">
+                    <div class="flex-grow-1">
+                        <div class="quote-header text-primary fw-semibold">
+                            <i class="bi bi-chat-quote-fill me-2"></i>
+                            Đang trả lời <strong>${authorName}</strong>
+                        </div>
+                        <div class="quote-body text-muted small mt-1 ps-4">
+                            ${content.length > 120 ? content.substring(0, 120) + '...' : content}
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-sm ms-3" 
+                            aria-label="Hủy trích dẫn" 
+                            onclick="clearQuote()" 
+                            style="opacity: 0.7;"></button>
                 </div>
                 <input type="hidden" name="quoted_message_id" value="${messageId}">
             `;
 
-            // Chèn VÀO TRONG FORM (fix quoted_message_id không gửi)
             document.querySelector('.input-area form').prepend(preview);
-
-            // Focus ô nhập
             document.getElementById('message-input').focus();
         }
 
