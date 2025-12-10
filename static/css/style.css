@@ -754,60 +754,83 @@ button {
     display: none;
 }
 
+/* Quote trong tin nhắn (khi hiển thị reply) */
 .quote-preview {
-    border-left: 3px solid #0d6efd;
-    padding-left: 12px;
-    margin: 8px 0 4px 0;
-    font-size: 0.9em;
-    color: var(--bs-body-color);
-    opacity: 0.8;
+    position: relative;
+    padding-left: 16px;
+    margin: 8px 0;
+    border-left: 3px solid #5865f2; /* Màu Discord */
+    border-radius: 4px;
 }
 
-.quote-preview .quote-line {
+.quote-preview::before {
+    content: '';
     position: absolute;
     left: 0;
     top: 0;
     bottom: 0;
     width: 3px;
-    background: #0d6efd;
+    background: #5865f2;
     border-radius: 2px;
 }
 
 .quote-preview .quote-content {
-    padding-left: 8px;
+    font-size: 0.9em;
+    opacity: 0.9;
 }
 
-.quote-text {
+.quote-preview strong {
+    color: #5865f2;
+    font-weight: 600;
+}
+
+.quote-preview .quote-text {
+    color: var(--bs-body-color);
+    opacity: 0.8;
+    margin: 2px 0 0;
+    font-style: italic;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 300px;
+    max-width: 400px;
     display: block;
 }
 
-/* Khi đang soạn reply */
-#quote-preview {
-    background: rgba(13, 110, 253, 0.1);
-    border: 1px solid #0d6efd;
+/* Preview khi đang soạn reply (trên ô nhập) */
+.quote-preview-active {
+    background: linear-gradient(90deg, rgba(88, 101, 242, 0.08) 0%, transparent 100%);
+    border: 1px solid rgba(88, 101, 242, 0.3);
+    border-left: 4px solid #5865f2;
     border-radius: 8px;
-    padding: 8px 12px;
-    margin-bottom: 8px;
+    padding: 10px 12px;
+    margin: 8px 0;
+    font-size: 0.9rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    animation: slideInQuote 0.2s ease-out;
+}
+
+@keyframes slideInQuote {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.quote-preview-active .quote-header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 0.9rem;
-    position: relative;
+    gap: 8px;
+    font-weight: 600;
+    color: #5865f2;
 }
 
-.quote-header {
-    flex: 1;
-    font-weight: 500;
+.quote-preview-active .quote-body {
+    margin-top: 4px;
+    color: #8b949e;
+    font-style: italic;
 }
 
-.quote-header strong {
-    color: #0d6efd;
+.quote-preview-active .btn-close-white {
+    opacity: 0.7;
 }
-
-.btn-quote {
-    padding: 4px 6px !important;
+.quote-preview-active .btn-close-white:hover {
+    opacity: 1;
 }
