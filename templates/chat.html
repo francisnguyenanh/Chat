@@ -267,23 +267,23 @@
         document.body.addEventListener('htmx:afterSettle', scrollToBottom);
 
         document.body.addEventListener('htmx:afterRequest', function(e) {
-            // CẬP NHẬT TIMESTAMP NGAY SAU RESPONSE (trước khi render)
             updateLastCheck();
-            
-            // XÓA QUOTE VÀ RESET FORM SAU MỌI GỬI THÀNH CÔNG (fix preview không clear)
-            if (e.detail.successful && (e.detail.pathInfo.finalUrl.includes('/api/send_message') || e.detail.pathInfo.finalUrl.includes('/api/upload_file'))) {
+
+            // CHỈ XỬ LÝ KHI LÀ GỬI TIN NHẮN BÌNH THƯỜNG (KHÔNG CÓ FILE)
+            // → Vì khi có file đã được xử lý trong fetch() + setTimeout rồi
+            if (
+                e.detail.successful && 
+                e.detail.elt && 
+                e.detail.elt.closest('.input-area') &&
+                pendingFiles.length === 0
+            ) {
                 clearQuote();
-                const form = document.querySelector('.input-area form');
-                form.reset();
+                e.detail.elt.reset();
                 pendingFiles = [];
                 showPendingFiles();
             }
 
-            // Sau khi polling lấy tin nhắn mới
-            if (e.detail.xhr.requestConfig?.elt?.id === 'poll' && 
-                e.detail.xhr.responseText.trim()) {
-                // Đã update timestamp ở trên
-            }
+            // Polling không cần xử lý gì thêm
         });
         
 
@@ -601,26 +601,20 @@
 
             // Nếu đang có file chờ gửi
             if (pendingFiles.length > 0) {
-                e.preventDefault(); // Chặn HTMX gửi message
+                e.preventDefault(); // Chặn HTMX
 
                 const formData = new FormData();
 
-                // Thêm file
                 pendingFiles.forEach(file => formData.append('file', file));
-
-                // Thêm nội dung tin nhắn (nếu có)
                 const messageInput = form.querySelector('#message-input');
                 if (messageInput.value.trim()) {
                     formData.append('message', messageInput.value.trim());
                 }
-
-                // Thêm quote (nếu có)
                 const quoteInput = form.querySelector('input[name="quoted_message_id"]');
                 if (quoteInput) {
                     formData.append('quoted_message_id', quoteInput.value);
                 }
 
-                // Gửi file + message + quote cùng lúc đến /api/upload_file (backend phải xử lý)
                 fetch('/api/upload_file', {
                     method: 'POST',
                     body: formData
@@ -630,11 +624,20 @@
                     if (html.trim()) {
                         document.getElementById('messages-area').insertAdjacentHTML('beforeend', html);
                     }
-                    // Reset form + xóa file + xóa quote (đã xử lý trong htmx:afterRequest)
                     scrollToBottom();
+
+                    // DÒNG QUAN TRỌNG NHẤT: XÓA QUOTE SAU KHI GỬI FILE THÀNH CÔNG!
+                    clearQuote();
+                    form.reset();
+                    pendingFiles = [];
+                    showPendingFiles();
+                })
+                .catch(err => {
+                    console.error('Upload failed:', err);
+                    alert('Gửi file thất bại!');
                 });
             }
-            // Nếu không có file → để HTMX gửi message + quote bình thường (hidden input đã trong form)
+            // Nếu không có file → HTMX gửi bình thường → htmx:afterRequest sẽ gọi clearQuote()
         });
 
     </script>
