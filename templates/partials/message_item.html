@@ -40,8 +40,22 @@
             <span class="message-reactions" id="reactions-{{ message.id }}">
                 {% include 'partials/reactions.html' %}
             </span>
-            {% if message.user_id == current_user.id or current_user.is_admin %}
+            {% if message.user_id == current_user.id or current_user.is_admin or true %}
             <span class="message-actions">
+                <!-- Nút Quote (hiển thị cho mọi người) -->
+                <button type="button" class="btn btn-sm btn-outline-secondary btn-quote" 
+                        onclick="quoteMessage({{ message.id }}, '{{ message.author.username|e }}', {{ (message.user_id == current_user.id)|lower }})"
+                        title="Trích dẫn tin nhắn">
+                    <i class="bi bi-chat-quote"></i>
+                </button>
+
+                <!-- Nút React -->
+                <button type="button" class="btn btn-sm btn-outline-secondary btn-add-reaction" 
+                        onclick="showReactionPicker({{ message.id }})"
+                        title="Thêm biểu cảm">
+                    <i class="bi bi-emoji-smile"></i>
+                </button>
+
                 {% if message.user_id == current_user.id %}
                 <button class="btn btn-sm btn-outline-secondary btn-edit" onclick="editMessage({{ message.id }})">
                     <i class="bi bi-pencil"></i>
@@ -59,6 +73,19 @@
         </div>
         {% endif %}
         <!-- Nội dung tin nhắn -->
+         {% if message.quoted_message_id %}
+            <div class="quote-preview">
+                <div class="quote-line"></div>
+                <div class="quote-content">
+                    <strong>{{ message.quoted_author_username or 'Đã xóa' }}</strong>
+                    {% if message.quoted_message_content %}
+                        <div class="quote-text">{{ message.quoted_message_content[:100] }}{% if message.quoted_message_content|length > 100 %}...{% endif %}</div>
+                    {% else %}
+                        <em>Tin nhắn gốc đã bị xóa</em>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
         <div class="message-text" contenteditable="false">{{ message.content }}</div>
         {% if message.edited_at %}
             <small class="text-muted">(đã chỉnh sửa)</small>

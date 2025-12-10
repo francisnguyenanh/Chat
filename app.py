@@ -236,17 +236,32 @@ def get_all_messages():
 @app.route('/api/send_message', methods=['POST'])
 @login_required
 def send_message():
-    """Send a new message"""
     content = request.form.get('message', '').strip()
-    if not content:
-        return '', 204
+    quoted_message_id = request.form.get('quoted_message_id')
     
-    # Save message to database
-    message = Message(user_id=current_user.id, content=content)
+    if not content and not quoted_message_id:
+        return '', 204
+
+    message = Message(
+        user_id=current_user.id,
+        content=content or "[Đã gửi một trích dẫn]"
+    )
+
+    if quoted_message_id:
+        try:
+            quoted_msg = Message.query.get(int(quoted_message_id))
+            if quoted_msg:
+                message.quoted_message_id = quoted_msg.id
+                message.quoted_author_username = quoted_msg.author.username
+                message.quoted_message_content = quoted_msg.content
+            else:
+                message.quoted_author_username = "Người dùng đã xóa"
+        except:
+            pass
+
     db.session.add(message)
     db.session.commit()
     
-    # Return the new message HTML
     return render_template('partials/message_item.html', 
                          message=message,
                          current_user=current_user)

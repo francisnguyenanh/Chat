@@ -206,12 +206,6 @@
         });
         
         document.body.addEventListener('htmx:afterSwap', (e) => {
-            // If we have filtered content, use it
-            if (e.detail.filteredContent) {
-                // The swap already happened, we just need to ensure no duplicates
-                // This is handled in beforeSwap now
-            }
-            
             convertToJapanTime();
             // Always update last check after every response (even if empty)
             if (e.detail.requestConfig?.path === '/api/messages/all') {
@@ -276,16 +270,15 @@
             // CẬP NHẬT TIMESTAMP NGAY SAU RESPONSE (trước khi render)
             updateLastCheck();
             
-            // Sau khi gửi tin nhắn (form gửi message)
-            if (
-                (e.detail.xhr.requestConfig?.elt?.tagName === 'FORM' && 
-                e.detail.xhr.requestConfig?.elt?.parentElement?.classList.contains('input-area'))
-            ) {
-                // Reset form
-                e.detail.xhr.requestConfig.elt.reset();
+            // XÓA QUOTE VÀ RESET FORM SAU MỌI GỬI THÀNH CÔNG (fix preview không clear)
+            if (e.detail.successful && (e.detail.pathInfo.finalUrl.includes('/api/send_message') || e.detail.pathInfo.finalUrl.includes('/api/upload_file'))) {
+                clearQuote();
+                const form = document.querySelector('.input-area form');
+                form.reset();
                 pendingFiles = [];
                 showPendingFiles();
             }
+
             // Sau khi polling lấy tin nhắn mới
             if (e.detail.xhr.requestConfig?.elt?.id === 'poll' && 
                 e.detail.xhr.responseText.trim()) {
@@ -533,7 +526,7 @@
                 preview = document.createElement('div');
                 preview.id = 'pending-files-preview';
                 preview.style.margin = '8px 0';
-                document.querySelector('.input-area').prepend(preview);
+                document.querySelector('.input-area form').prepend(preview); // Chèn vào form để mượt hơn
             }
             preview.innerHTML = '';
             pendingFiles.forEach((file, idx) => {
@@ -565,29 +558,84 @@
             if (pendingFiles.length === 0) preview.remove();
         }
 
-        // Khi gửi form, gửi kèm file/hình nếu có
-        document.querySelector('.input-area form').addEventListener('submit', function(e) {
-        if (pendingFiles.length > 0) {
-            e.preventDefault();
-            const formData = new FormData();
-            pendingFiles.forEach(file => formData.append('file', file));
-            fetch('/api/upload_file', {
-                method: 'POST',
-                body: formData
-            }).then(res => res.text())
-            .then(html => {
-                pendingFiles = [];
-                showPendingFiles();
-                // Thêm file vào khung chat
-                document.getElementById('messages-area').insertAdjacentHTML('beforeend', html);
-                // Sau khi upload file xong, nếu có message thì gửi tiếp message
-                if (this.message.value.trim()) {
-                    this.submit();
-                }
-            });
+        function quoteMessage(messageId, authorName) {
+            // Xóa quote cũ trước
+            clearQuote();
+
+            // Tìm nội dung tin nhắn gốc
+            const msgEl = document.getElementById('message-' + messageId);
+            const textEl = msgEl?.querySelector('.message-text');
+            const content = textEl ? textEl.textContent.trim() : '[Tin nhắn có chứa file]';
+
+            // Tạo preview quote mới
+            const preview = document.createElement('div');
+            preview.id = 'active-quote-preview';
+            preview.className = 'quote-preview-active';
+            preview.innerHTML = `
+                <div class="quote-header">
+                    <i class="bi bi-chat-quote me-2"></i>
+                    <span>Đang trả lời <strong>${authorName}</strong></span>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Hủy" onclick="clearQuote()"></button>
+                </div>
+                <div class="quote-body text-muted small">
+                    ${content.substring(0, 120)}${content.length > 120 ? '...' : ''}
+                </div>
+                <input type="hidden" name="quoted_message_id" value="${messageId}">
+            `;
+
+            // Chèn VÀO TRONG FORM (fix quoted_message_id không gửi)
+            document.querySelector('.input-area form').prepend(preview);
+
+            // Focus ô nhập
+            document.getElementById('message-input').focus();
         }
-        // Nếu không có file, form sẽ gửi message như bình thường (HTMX)
-    });
+
+        function clearQuote() {
+            const preview = document.getElementById('active-quote-preview');
+            if (preview) preview.remove();
+        }
+
+        document.body.addEventListener('htmx:beforeRequest', function(e) {
+            const form = e.detail.elt;
+            if (!form || !form.closest('.input-area')) return;
+
+            // Nếu đang có file chờ gửi
+            if (pendingFiles.length > 0) {
+                e.preventDefault(); // Chặn HTMX gửi message
+
+                const formData = new FormData();
+
+                // Thêm file
+                pendingFiles.forEach(file => formData.append('file', file));
+
+                // Thêm nội dung tin nhắn (nếu có)
+                const messageInput = form.querySelector('#message-input');
+                if (messageInput.value.trim()) {
+                    formData.append('message', messageInput.value.trim());
+                }
+
+                // Thêm quote (nếu có)
+                const quoteInput = form.querySelector('input[name="quoted_message_id"]');
+                if (quoteInput) {
+                    formData.append('quoted_message_id', quoteInput.value);
+                }
+
+                // Gửi file + message + quote cùng lúc đến /api/upload_file (backend phải xử lý)
+                fetch('/api/upload_file', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.text())
+                .then(html => {
+                    if (html.trim()) {
+                        document.getElementById('messages-area').insertAdjacentHTML('beforeend', html);
+                    }
+                    // Reset form + xóa file + xóa quote (đã xử lý trong htmx:afterRequest)
+                    scrollToBottom();
+                });
+            }
+            // Nếu không có file → để HTMX gửi message + quote bình thường (hidden input đã trong form)
+        });
 
     </script>
 

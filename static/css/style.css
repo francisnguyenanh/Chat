@@ -753,3 +753,61 @@ button {
 .input-area .btn[type="submit"] {
     display: none;
 }
+
+.quote-preview {
+    border-left: 3px solid #0d6efd;
+    padding-left: 12px;
+    margin: 8px 0 4px 0;
+    font-size: 0.9em;
+    color: var(--bs-body-color);
+    opacity: 0.8;
+}
+
+.quote-preview .quote-line {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #0d6efd;
+    border-radius: 2px;
+}
+
+.quote-preview .quote-content {
+    padding-left: 8px;
+}
+
+.quote-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+    display: block;
+}
+
+/* Khi đang soạn reply */
+#quote-preview {
+    background: rgba(13, 110, 253, 0.1);
+    border: 1px solid #0d6efd;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9rem;
+    position: relative;
+}
+
+.quote-header {
+    flex: 1;
+    font-weight: 500;
+}
+
+.quote-header strong {
+    color: #0d6efd;
+}
+
+.btn-quote {
+    padding: 4px 6px !important;
+}
