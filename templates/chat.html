@@ -181,16 +181,21 @@
             if (e.detail.target.id === 'messages-area' && e.detail.xhr.responseText) {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = e.detail.xhr.responseText;
-                const newItems = tempDiv.querySelectorAll('[data-message-id], [data-file-id]');
-                newItems.forEach(item => {
+
+                // Lấy tất cả ID message/file đã có trên giao diện
+                const existingMsgIds = new Set(Array.from(document.querySelectorAll('[data-message-id]')).map(el => el.getAttribute('data-message-id')));
+                const existingFileIds = new Set(Array.from(document.querySelectorAll('[data-file-id]')).map(el => el.getAttribute('data-file-id')));
+
+                // Lọc các phần tử trùng ID
+                tempDiv.querySelectorAll('[data-message-id]').forEach(item => {
                     const msgId = item.getAttribute('data-message-id');
-                    const fileId = item.getAttribute('data-file-id');
-                    const id = msgId || fileId;
-                    const idAttr = msgId ? 'data-message-id' : 'data-file-id';
-                    if (document.querySelector(`[${idAttr}="${id}"]`)) {
-                        item.remove();
-                    }
+                    if (existingMsgIds.has(msgId)) item.remove();
                 });
+                tempDiv.querySelectorAll('[data-file-id]').forEach(item => {
+                    const fileId = item.getAttribute('data-file-id');
+                    if (existingFileIds.has(fileId)) item.remove();
+                });
+
                 // Nếu không còn gì mới, không swap
                 if (tempDiv.innerHTML.trim() === '') {
                     e.detail.shouldSwap = false;
@@ -268,16 +273,23 @@
         document.body.addEventListener('htmx:afterSettle', scrollToBottom);
 
         document.body.addEventListener('htmx:afterRequest', function(e) {
+            // CẬP NHẬT TIMESTAMP NGAY SAU RESPONSE (trước khi render)
+            updateLastCheck();
+            
             // Sau khi gửi tin nhắn (form gửi message)
             if (
-                e.detail.requestConfig?.path === '/api/send_message' ||
-                (e.detail.xhr.requestConfig?.elt?.tagName === 'FORM' && e.detail.xhr.requestConfig?.elt?.parentElement?.classList.contains('input-area'))
+                (e.detail.xhr.requestConfig?.elt?.tagName === 'FORM' && 
+                e.detail.xhr.requestConfig?.elt?.parentElement?.classList.contains('input-area'))
             ) {
-                updateLastCheck();
+                // Reset form
+                e.detail.xhr.requestConfig.elt.reset();
+                pendingFiles = [];
+                showPendingFiles();
             }
             // Sau khi polling lấy tin nhắn mới
-            if (e.detail.xhr.requestConfig?.elt?.id === 'poll' && e.detail.xhr.responseText.trim()) {
-                updateLastCheck();
+            if (e.detail.xhr.requestConfig?.elt?.id === 'poll' && 
+                e.detail.xhr.responseText.trim()) {
+                // Đã update timestamp ở trên
             }
         });
         
